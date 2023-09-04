@@ -1,5 +1,6 @@
 use num::{PrimInt, Unsigned};
 
+mod decoder;
 mod encoder;
 
 pub const CROCKFORD_ALPHABET: [char; 32] = [
@@ -7,7 +8,7 @@ pub const CROCKFORD_ALPHABET: [char; 32] = [
     'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X', 'Y', 'Z',
 ];
 
-fn crockford_index(c: char) -> Option<u8> {
+pub(crate) fn crockford_index(c: char) -> Option<u8> {
     match c {
         '0' => Some(0),
         '1' => Some(1),
@@ -121,7 +122,7 @@ mod tests {
     #[test]
     fn basic_streaming_encoder() {
         let data = [0b11111000, 0b00111110, 0b00001111, 0b10000011, 0b11100000];
-        let encoded: String = data.iter().crockford_encoded().collect();
+        let encoded: String = data.iter().cloned().crockford_encoded().collect();
         assert_eq!("Z0Z0Z0Z0", encoded);
     }
 }

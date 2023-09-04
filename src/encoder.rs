@@ -1,17 +1,17 @@
 use crate::CROCKFORD_ALPHABET;
 
-pub trait IntoCrockfordEncoder<'data, I>
+pub trait IntoCrockfordEncoder<I>
 where
-    I: Iterator<Item = &'data u8>,
+    I: Iterator<Item = u8>,
 {
-    fn crockford_encoded(self) -> CrockfordEncoder<'data, I>;
+    fn crockford_encoded(self) -> CrockfordEncoder<I>;
 }
 
-impl<'data, I> IntoCrockfordEncoder<'data, I> for I
+impl<I> IntoCrockfordEncoder<I> for I
 where
-    I: Iterator<Item = &'data u8>,
+    I: Iterator<Item = u8>,
 {
-    fn crockford_encoded(self) -> CrockfordEncoder<'data, I> {
+    fn crockford_encoded(self) -> CrockfordEncoder<I> {
         CrockfordEncoder {
             byte_stream: self,
             cycle_position: 0,
@@ -21,9 +21,9 @@ where
     }
 }
 
-pub struct CrockfordEncoder<'data, I>
+pub struct CrockfordEncoder<I>
 where
-    I: Iterator<Item = &'data u8>,
+    I: Iterator<Item = u8>,
 {
     byte_stream: I,
     cycle_position: usize,
@@ -31,12 +31,12 @@ where
     finished: bool,
 }
 
-impl<'data, I> CrockfordEncoder<'data, I>
+impl<I> CrockfordEncoder<I>
 where
-    I: Iterator<Item = &'data u8>,
+    I: Iterator<Item = u8>,
 {
     fn get_next(&mut self) -> u8 {
-        if let Some(&next) = self.byte_stream.next() {
+        if let Some(next) = self.byte_stream.next() {
             next
         } else {
             self.finished = true;
@@ -55,9 +55,9 @@ where
     }
 }
 
-impl<'data, I> Iterator for CrockfordEncoder<'data, I>
+impl<I> Iterator for CrockfordEncoder<I>
 where
-    I: Iterator<Item = &'data u8>,
+    I: Iterator<Item = u8>,
 {
     type Item = char;
 
@@ -68,9 +68,10 @@ where
         }
         let value_to_encode = match self.cycle_position {
             0 => {
-                let next = if let Some(&next) = self.byte_stream.next() {
+                let next = if let Some(next) = self.byte_stream.next() {
                     next
                 } else {
+                    self.finished = true;
                     return None;
                 };
                 let data = (next & 0b11111000) >> 3;
