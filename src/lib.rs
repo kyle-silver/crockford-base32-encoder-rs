@@ -88,32 +88,20 @@ where
     Ok(acc)
 }
 
-struct CrockfordEncoder<I>
+pub trait IntoCrockfordEncoder<'data, I>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = &'data u8>,
 {
-    byte_stream: I,
+    fn crockford_encoded(self) -> CrockfordEncoder<'data, I>;
 }
 
-impl<I> CrockfordEncoder<I>
+impl<'data, I> IntoCrockfordEncoder<'data, I> for I
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = &'data u8>,
 {
-    fn new(byte_stream: I) -> Self {
-        CrockfordEncoder { byte_stream }
-    }
-}
-
-impl<I> IntoIterator for CrockfordEncoder<I>
-where
-    I: Iterator<Item = u8>,
-{
-    type Item = char;
-    type IntoIter = CrockfordEncoderIterator<I>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        CrockfordEncoderIterator {
-            byte_stream: self.byte_stream,
+    fn crockford_encoded(self) -> CrockfordEncoder<'data, I> {
+        CrockfordEncoder {
+            byte_stream: self,
             cycle_position: 0,
             buffer: None,
             finished: false,
@@ -121,25 +109,9 @@ where
     }
 }
 
-pub trait IntoCrockfordEncoder<I>
+pub struct CrockfordEncoder<'data, I>
 where
-    I: Iterator<Item = u8>,
-{
-    fn crockford_encoded(self) -> CrockfordEncoderIterator<I>;
-}
-
-impl<I> IntoCrockfordEncoder<I> for I
-where
-    I: Iterator<Item = u8>,
-{
-    fn crockford_encoded(self) -> CrockfordEncoderIterator<I> {
-        CrockfordEncoder::new(self).into_iter()
-    }
-}
-
-pub struct CrockfordEncoderIterator<I>
-where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = &'data u8>,
 {
     byte_stream: I,
     cycle_position: usize,
@@ -147,12 +119,12 @@ where
     finished: bool,
 }
 
-impl<I> CrockfordEncoderIterator<I>
+impl<'data, I> CrockfordEncoder<'data, I>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = &'data u8>,
 {
     fn get_next(&mut self) -> u8 {
-        if let Some(next) = self.byte_stream.next() {
+        if let Some(&next) = self.byte_stream.next() {
             next
         } else {
             self.finished = true;
@@ -171,9 +143,9 @@ where
     }
 }
 
-impl<I> Iterator for CrockfordEncoderIterator<I>
+impl<'data, I> Iterator for CrockfordEncoder<'data, I>
 where
-    I: Iterator<Item = u8>,
+    I: Iterator<Item = &'data u8>,
 {
     type Item = char;
 
@@ -184,7 +156,7 @@ where
         }
         let value_to_encode = match self.cycle_position {
             0 => {
-                let next = if let Some(next) = self.byte_stream.next() {
+                let next = if let Some(&next) = self.byte_stream.next() {
                     next
                 } else {
                     return None;
@@ -256,7 +228,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{decode, encode, CrockfordDecodeError, CrockfordEncoder};
+    use crate::{decode, encode, CrockfordDecodeError, IntoCrockfordEncoder};
 
     #[test]
     fn test_encode() {
@@ -286,10 +258,7 @@ mod tests {
         let data = [
             0b11111000, 0b00111110, 0b00001111, 0b10000011, 0b11100000, 0b01010000,
         ];
-        let mut byte_stream = data.into_iter();
-        let encoded: String = CrockfordEncoder::new(&mut byte_stream)
-            .into_iter()
-            .collect();
+        let encoded: String = data.iter().crockford_encoded().collect();
         println!("{encoded}");
     }
 }
