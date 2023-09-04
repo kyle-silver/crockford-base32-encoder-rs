@@ -88,20 +88,28 @@ where
     Ok(acc)
 }
 
-struct CrockfordEncoder<'byte_stream> {
-    byte_stream: &'byte_stream mut dyn Iterator<Item = u8>,
+struct CrockfordEncoder<I>
+where
+    I: Iterator<Item = u8>,
+{
+    byte_stream: I,
 }
 
-impl<'byte_stream> CrockfordEncoder<'byte_stream> {
-    fn new(byte_stream: &'byte_stream mut dyn Iterator<Item = u8>) -> Self {
+impl<I> CrockfordEncoder<I>
+where
+    I: Iterator<Item = u8>,
+{
+    fn new(byte_stream: I) -> Self {
         CrockfordEncoder { byte_stream }
     }
 }
 
-impl<'byte_stream> IntoIterator for CrockfordEncoder<'byte_stream> {
+impl<I> IntoIterator for CrockfordEncoder<I>
+where
+    I: Iterator<Item = u8>,
+{
     type Item = char;
-
-    type IntoIter = CrockfordEncoderIterator<'byte_stream>;
+    type IntoIter = CrockfordEncoderIterator<I>;
 
     fn into_iter(self) -> Self::IntoIter {
         CrockfordEncoderIterator {
@@ -113,14 +121,36 @@ impl<'byte_stream> IntoIterator for CrockfordEncoder<'byte_stream> {
     }
 }
 
-struct CrockfordEncoderIterator<'byte_stream> {
-    byte_stream: &'byte_stream mut dyn Iterator<Item = u8>,
+pub trait IntoCrockfordEncoder<I>
+where
+    I: Iterator<Item = u8>,
+{
+    fn crockford_encoded(self) -> CrockfordEncoderIterator<I>;
+}
+
+impl<I> IntoCrockfordEncoder<I> for I
+where
+    I: Iterator<Item = u8>,
+{
+    fn crockford_encoded(self) -> CrockfordEncoderIterator<I> {
+        CrockfordEncoder::new(self).into_iter()
+    }
+}
+
+pub struct CrockfordEncoderIterator<I>
+where
+    I: Iterator<Item = u8>,
+{
+    byte_stream: I,
     cycle_position: usize,
     buffer: Option<u8>,
     finished: bool,
 }
 
-impl CrockfordEncoderIterator<'_> {
+impl<I> CrockfordEncoderIterator<I>
+where
+    I: Iterator<Item = u8>,
+{
     fn get_next(&mut self) -> u8 {
         if let Some(next) = self.byte_stream.next() {
             next
@@ -141,7 +171,10 @@ impl CrockfordEncoderIterator<'_> {
     }
 }
 
-impl<'byte_stream> Iterator for CrockfordEncoderIterator<'byte_stream> {
+impl<I> Iterator for CrockfordEncoderIterator<I>
+where
+    I: Iterator<Item = u8>,
+{
     type Item = char;
 
     #[allow(clippy::let_and_return)]
@@ -254,9 +287,9 @@ mod tests {
             0b11111000, 0b00111110, 0b00001111, 0b10000011, 0b11100000, 0b01010000,
         ];
         let mut byte_stream = data.into_iter();
-        let mut encoder = CrockfordEncoder::new(&mut byte_stream).into_iter();
-        while let Some(c) = encoder.next() {
-            println!("{c}");
-        }
+        let encoded: String = CrockfordEncoder::new(&mut byte_stream)
+            .into_iter()
+            .collect();
+        println!("{encoded}");
     }
 }
